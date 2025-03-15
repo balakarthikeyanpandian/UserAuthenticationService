@@ -9,14 +9,16 @@ import com.example.userauthenticationservice.models.Status;
 import com.example.userauthenticationservice.models.User;
 import com.example.userauthenticationservice.repos.RoleRepo;
 import com.example.userauthenticationservice.repos.UserRepo;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.MacAlgorithm;
+import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 
 @Service
 public class AuthService implements IAuthService{
@@ -61,7 +63,7 @@ public class AuthService implements IAuthService{
 
     }
 
-    public User login(String email, String password) throws UserDoesNotExistException, InvalidCredentialsException{
+    public Pair<User,String> login(String email, String password) throws UserDoesNotExistException, InvalidCredentialsException{
 
         Optional<User> optionalUser = userRepo.findByEmail(email);
 
@@ -78,7 +80,35 @@ public class AuthService implements IAuthService{
             throw new InvalidCredentialsException("The email & password does not match");
         }
 
-        return optionalUser.get();
+        String message  = "Logged in successfully";
+
+        //Generate JWT tokens
+//        String jsonMessage = "{\n" +
+//                "\"name\":\"bala\"\n" +
+//                "\"message\":\""+message+"\"}";
+//
+//        byte[] convertedMessage = jsonMessage.getBytes(StandardCharsets.UTF_8);
+
+//        String finalMessage = Jwts.builder().content(convertedMessage).compact();
+
+        Map<String,Object> tokenValue = new HashMap<>();
+
+        Long timeInMilli = System.currentTimeMillis();
+        Long expTimeInMilli = timeInMilli +  (60*60*24*30*1000L);
+
+        tokenValue.put("iat",timeInMilli);
+        tokenValue.put("exp",expTimeInMilli);
+        tokenValue.put("userId",optionalUser.get().getId());
+        tokenValue.put("source","API");
+
+        MacAlgorithm macAlgorithm = Jwts.SIG.HS256;
+        SecretKey secretKey = macAlgorithm.key().build();
+
+        String token = Jwts.builder().claims(tokenValue).signWith(secretKey).compact();
+
+        Pair<User,String> pair = new Pair<>(optionalUser.get(),token);
+
+        return pair;
 
     }
 }

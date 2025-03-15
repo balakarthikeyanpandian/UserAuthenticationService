@@ -10,10 +10,14 @@ import com.example.userauthenticationservice.exceptions.UserPresentAlreadyExcept
 import com.example.userauthenticationservice.models.Role;
 import com.example.userauthenticationservice.models.User;
 import com.example.userauthenticationservice.services.IAuthService;
+import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,8 +60,14 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<UserDto> login(@RequestBody LoginRequest loginRequest){
         try{
-            User user = authService.login(loginRequest.getEmail(), loginRequest.getPassword());
-            return new ResponseEntity<>(from(user),HttpStatus.ACCEPTED);
+            Pair<User,String> response = authService.login(loginRequest.getEmail(), loginRequest.getPassword());
+
+            String message = response.b;
+
+            MultiValueMap<String,String> headers = new LinkedMultiValueMap<>();
+            headers.add(HttpHeaders.SET_COOKIE,message);
+
+            return new ResponseEntity<>(from(response.a),headers,HttpStatus.ACCEPTED);
         }catch (InvalidCredentialsException exception){
             return new ResponseEntity<>(null,HttpStatus.CONFLICT);
         }catch (UserDoesNotExistException exception){
