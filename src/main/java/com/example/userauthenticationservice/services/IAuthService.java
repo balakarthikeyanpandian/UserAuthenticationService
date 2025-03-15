@@ -1,9 +1,6 @@
 package com.example.userauthenticationservice.services;
 
-import com.example.userauthenticationservice.exceptions.InvalidCredentialsException;
-import com.example.userauthenticationservice.exceptions.RoleDoesNotExistException;
-import com.example.userauthenticationservice.exceptions.UserDoesNotExistException;
-import com.example.userauthenticationservice.exceptions.UserPresentAlreadyException;
+import com.example.userauthenticationservice.exceptions.*;
 import com.example.userauthenticationservice.models.User;
 import org.antlr.v4.runtime.misc.Pair;
 
@@ -14,4 +11,5 @@ public interface IAuthService {
 
     Pair<User,String> login(String email, String password) throws UserDoesNotExistException, InvalidCredentialsException;
 
+    boolean validateToken(String token, Long userId) throws UnAuthorizedUserException;
 }

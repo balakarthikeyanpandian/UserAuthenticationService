@@ -1,16 +1,12 @@
 package com.example.userauthenticationservice.controllers;
 
-import com.example.userauthenticationservice.dtos.LoginRequest;
-import com.example.userauthenticationservice.dtos.SingUpRequest;
-import com.example.userauthenticationservice.dtos.UserDto;
-import com.example.userauthenticationservice.exceptions.InvalidCredentialsException;
-import com.example.userauthenticationservice.exceptions.RoleDoesNotExistException;
-import com.example.userauthenticationservice.exceptions.UserDoesNotExistException;
-import com.example.userauthenticationservice.exceptions.UserPresentAlreadyException;
+import com.example.userauthenticationservice.dtos.*;
+import com.example.userauthenticationservice.exceptions.*;
 import com.example.userauthenticationservice.models.Role;
 import com.example.userauthenticationservice.models.User;
 import com.example.userauthenticationservice.services.IAuthService;
 import org.antlr.v4.runtime.misc.Pair;
+import org.apache.coyote.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -73,6 +69,25 @@ public class AuthController {
         }catch (UserDoesNotExistException exception){
             return new ResponseEntity<>(null, HttpStatus.NOT_FOUND);
         }
+    }
+
+    @PostMapping("/validateToken")
+    public ResponseEntity<TokenResponseDto> validateToken(@RequestBody RequestTokenDto requestTokenDto){
+
+        TokenResponseDto tokenResponseDto = new TokenResponseDto();
+
+        try{
+            authService.validateToken(requestTokenDto.getToken(), requestTokenDto.getUserId());
+
+        }catch(UnAuthorizedUserException exception){
+            tokenResponseDto.setStatus(false);
+            tokenResponseDto.setMessage(exception.getMessage());
+            return new ResponseEntity<>(tokenResponseDto,HttpStatus.UNAUTHORIZED);
+        }
+
+        tokenResponseDto.setStatus(true);
+        tokenResponseDto.setMessage("Valid Token");
+        return new ResponseEntity<>(tokenResponseDto,HttpStatus.ACCEPTED);
     }
 
     private UserDto from(User user){

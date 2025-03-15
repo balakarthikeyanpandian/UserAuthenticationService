@@ -1,16 +1,18 @@
 package com.example.userauthenticationservice.services;
 
-import com.example.userauthenticationservice.exceptions.InvalidCredentialsException;
-import com.example.userauthenticationservice.exceptions.RoleDoesNotExistException;
-import com.example.userauthenticationservice.exceptions.UserDoesNotExistException;
-import com.example.userauthenticationservice.exceptions.UserPresentAlreadyException;
+import com.example.userauthenticationservice.exceptions.*;
 import com.example.userauthenticationservice.models.Role;
+import com.example.userauthenticationservice.models.Session;
 import com.example.userauthenticationservice.models.Status;
 import com.example.userauthenticationservice.models.User;
 import com.example.userauthenticationservice.repos.RoleRepo;
+import com.example.userauthenticationservice.repos.SessionRepo;
 import com.example.userauthenticationservice.repos.UserRepo;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.MacAlgorithm;
+import io.jsonwebtoken.security.SignatureException;
 import org.antlr.v4.runtime.misc.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -28,6 +30,12 @@ public class AuthService implements IAuthService{
 
     @Autowired
     private RoleRepo roleRepo;
+
+    @Autowired
+    private SessionRepo sessionRepo;
+
+    @Autowired
+    private SecretKey secretKey;
 
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -101,14 +109,45 @@ public class AuthService implements IAuthService{
         tokenValue.put("userId",optionalUser.get().getId());
         tokenValue.put("source","API");
 
-        MacAlgorithm macAlgorithm = Jwts.SIG.HS256;
-        SecretKey secretKey = macAlgorithm.key().build();
+//        MacAlgorithm macAlgorithm = Jwts.SIG.HS256;
+//        SecretKey secretKey = macAlgorithm.key().build();
 
         String token = Jwts.builder().claims(tokenValue).signWith(secretKey).compact();
+
+        Session session = new Session();
+        session.setToken(token);
+        session.setUser(optionalUser.get());
+        session.setStatus(Status.ACTIVE);
+
+        sessionRepo.save(session);
 
         Pair<User,String> pair = new Pair<>(optionalUser.get(),token);
 
         return pair;
 
+    }
+
+
+    public boolean validateToken(String token,Long userId) throws UnAuthorizedUserException{
+
+        Optional<Session> optionalSession = sessionRepo.findByTokenAndUser_IdAndStatus(token,userId,Status.ACTIVE);
+
+        if(optionalSession.isEmpty()){
+            throw new UnAuthorizedUserException("Invalid Token");
+        }
+
+            try{
+                JwtParser jwtParser = Jwts.parser().verifyWith(secretKey).build();
+                Claims claims = jwtParser.parseSignedClaims(token).getPayload();
+                Long expDateMilli = (Long) claims.get("exp");
+                Long currenTimeMilli = System.currentTimeMillis();
+                if(currenTimeMilli > expDateMilli){
+                    throw new UnAuthorizedUserException("Token Expired");
+                }
+
+            }catch (SignatureException signatureException){
+                throw new UnAuthorizedUserException("Signature Expired");
+            }
+        return true;
     }
 }
